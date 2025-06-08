@@ -14,6 +14,7 @@ import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes.js';
 import dishRoutes from './routes/dish.routes.js';
 import orderRoutes from './routes/orders.routes.js';
+import reviewRoutes from './routes/reviews.routes.js';
 
 // ?? <----------------------------------------------------------------------------------------->
 
@@ -38,7 +39,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/dishes', dishRoutes);
 app.use('/api/orders', orderRoutes);
-
+app.use('/api/reviews', reviewRoutes);
 
 
 const port = process.env.PORT || 3000;

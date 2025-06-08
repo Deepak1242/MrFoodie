@@ -1,13 +1,15 @@
 
 
 import express from 'express';
-import { getAllOrders, getOrderById, placeOrder, updateOrder, deleteOrder } from '../controllers/orders.controllers.js';
+import { getAllOrders, getOrderById, placeOrder, updateOrder, deleteOrder , getOrdersByUserId} from '../controllers/orders.controllers.js';
 import { authAdminMiddleware, authUserMiddleware } from '../middleware/auth.middleware.js';         
 
 const router = express.Router();
 
 // Route to get all orders
 router.get('/', authAdminMiddleware, getAllOrders);
+
+router.get('/user', authUserMiddleware, getOrdersByUserId); // Route to get orders by user ID
 // Route to get an order by ID
 router.get('/:id', authAdminMiddleware, getOrderById);
 // Route to create a new order

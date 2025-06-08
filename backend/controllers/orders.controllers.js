@@ -1,9 +1,9 @@
 
-import { Prisma } from "../generated/prisma";
-// import { Prisma } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma/index.js";
 
 
-const prisma = new Prisma.Client();
+
+const prisma = new PrismaClient();
 
 // ----------- CREATE ORDER ------------
 export const placeOrder = async (req, res)=>{
@@ -30,33 +30,33 @@ export const placeOrder = async (req, res)=>{
     }
     // Validate each item in the items array
     for (const item of items) {
-        if (!item.dishId || !item.quantity || item.quantity <= 0) {
+        if (!item.id || !item.quantity || item.quantity <= 0) {
             return res.status(400).json({ message: "Each item must have a valid dishId and quantity greater than 0" });
         }
     }
     
     // Calculate total price
-    let total = 0;
+    var  ftotal = 0;
     const orderItems = [];
 
     for (const item of items){
-       const orderItem =  await prisma.OrderItem.findUnique({
+       const orderItem =  await prisma.dish.findUnique({
             where : {
-                dishId : item.dishId
+                id : item.id
             }
         })
 
         if (!orderItem) {
-            return res.status(404).json({ message: `Dish with ID ${item.dishId} not found` });
+            return res.status(404).json({ message: `Dish with ID ${item.id} not found` });
         }
         const mtotal  = orderItem.price * item.quantity;
 
-        total += mtotal;
+        ftotal += mtotal;
 
         orderItems.push({
-            dishId: item.dishId,
+            dishId: item.id,
             quantity: item.quantity,
-            quantity: item.quantity,
+          
         });
 
     }
@@ -68,17 +68,23 @@ export const placeOrder = async (req, res)=>{
             items: {
                 create: orderItems,
             } ,
-            total: total,
+            total: parseFloat(ftotal),
             address,
             paymentId,
         },
         include: {
             user: true,
-            items: true,
-            total: true,
+            
+            items: {
+                include: {
+                    dish: true, // Include dish details in each order item
+                }
+            }
         }
     
     })
+
+    res.status(201).json({ message: "Order placed successfully", order: newOrder });
     
     } catch (error) {
         console.error("Error creating order:", error);
@@ -93,8 +99,7 @@ export const getAllOrders = async (req, res) => {
         const orders = await prisma.order.findMany({
             include: {
                 user: true,
-                items: true,
-                total: true,
+              
                 items: {
                     include:{
                         dish : true, // Include dish details in each order item
@@ -123,9 +128,15 @@ export const getOrdersByUserId = async (req, res) => {
         const orders = await prisma.order.findMany({
             where: { userId },
             include: {
+                
                 user: true,
-                items: true,
-                total: true,
+                items: {
+
+                    include: {
+                        dish: true, // Include dish details in each order item
+                    }
+                }
+                
             },
         });
 
@@ -149,8 +160,12 @@ export const getOrderById = async (req, res) => {
             where: { id: parseInt(id) },
             include: {
                 user: true,
-                items: true,
-                total: true,
+                items: {
+                    include: {
+                        dish: true, // Include dish details in each order item
+                    }
+                }
+               
             },
         });
 
@@ -179,8 +194,12 @@ export const updateOrder = async (req, res) => {
             },
             include: {
                 user: true,
-                items: true,
-                total: true,
+               
+                items: {
+                    include: {
+                        dish: true, // Include dish details in each order item
+                    }
+                }
             },
         });
 
@@ -196,13 +215,20 @@ export const deleteOrder = async (req, res) => {
     const { id } = req.params;
 
     try {
-        await prisma.order.delete({
+        await prisma.orderItem.deleteMany({
+            where :{
+                orderId : parseInt(id)
+            }
+        }).then(async() => {
+            await prisma.order.delete({
             where: { id: parseInt(id) },
         });
+        })
+        
 
         res.status(200).json({ message: "Order deleted successfully" });
     } catch (error) {
         console.error("Error deleting order:", error);
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        res.status(500).json({ message: "Order not found to delete", error: error.message });
     }
 }   

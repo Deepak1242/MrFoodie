@@ -25,6 +25,7 @@ export const authUserMiddleware = async (req, res, next) => {
       }
       req.user = user; // Attach user to request object
       next();
+      
     } catch (error) {
       console.error("Authentication error:", error);
       return res.status(403).json({ message: "Invalid token" });
