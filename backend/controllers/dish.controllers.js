@@ -60,6 +60,11 @@ export const getAllDishes = async (req, res) => {
 export const getDishById = async (req, res) => {
   const { id } = req.params;
 
+  // Validate id
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ message: "Invalid or missing dish id" });
+  }
+
   try {
     const dish = await prisma.dish.findUnique({
       where: { id: parseInt(id) }
@@ -108,3 +113,63 @@ export const deleteDish = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+// ----------- SEARCH & FILTER DISHES ------------
+
+export const searchAndFilterDishes = async (req, res) => {
+  try {
+    const {
+      keyword,
+      category,
+      minPrice,
+      maxPrice,
+      sortBy = "price",
+      sortOrder = "asc"
+    } = req.query;
+
+    const filters = {};
+
+    if (keyword) {
+      filters.OR = [
+        { name: { contains: keyword, mode: "insensitive" } },
+        { description: { contains: keyword, mode: "insensitive" } }
+      ];
+    }
+
+    if (category) {
+      filters.category = { equals: category, mode: "insensitive" };
+    }
+
+    if (minPrice || maxPrice) {
+      filters.price = {};
+      if (minPrice) filters.price.gte = parseFloat(minPrice);
+      if (maxPrice) filters.price.lte = parseFloat(maxPrice);
+    }
+
+    const dishes = await prisma.dish.findMany({
+      where: filters,
+      include: {
+        reviews: true
+      },
+      orderBy: sortBy === "price" ? { price: sortOrder } : undefined
+    });
+
+    const result = dishes.map((dish) => {
+      const totalRating = dish.reviews.reduce((sum, r) => sum + r.rating, 0);
+      const avgRating = dish.reviews.length
+        ? (totalRating / dish.reviews.length).toFixed(1)
+        : null;
+
+      return {
+        ...dish,
+        avgRating,
+        reviewCount: dish.reviews.length
+      };
+    });
+
+    res.status(200).json({ dishes: result });
+  } catch (error) {
+    console.error("Search error:", error);
+    res.status(500).json({ message: "Search failed", error: error.message, stack: error.stack });
+  }
+};
